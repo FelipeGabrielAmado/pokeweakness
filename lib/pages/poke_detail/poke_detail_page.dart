@@ -6,6 +6,8 @@ import 'package:pokeweakness/consts/consts_api.dart';
 import 'package:pokeweakness/consts/consts_app.dart';
 import 'package:pokeweakness/models/pokeapi.dart';
 import 'package:pokeweakness/stores/pokeapi_store.dart';
+import 'package:simple_animations/simple_animations/controlled_animation.dart';
+import 'package:simple_animations/simple_animations/multi_track_tween.dart';
 import 'package:sliding_sheet/sliding_sheet.dart';
 
 class PokeDetailPage extends StatefulWidget {
@@ -20,9 +22,11 @@ class _PokeDetailPageState extends State<PokeDetailPage> {
   PageController _pageController;
   Pokemon _pokemon;
   PokeApiStore _pokemonStore;
+  MultiTrackTween _animation;
   double _progress;
   double _multiple;
   double _opacity;
+  double _opacityTitleAppBar;
 
   @override
   void initState() {
@@ -31,9 +35,14 @@ class _PokeDetailPageState extends State<PokeDetailPage> {
         PageController(initialPage: widget.index, viewportFraction: 0.8);
     _pokemonStore = GetIt.instance<PokeApiStore>();
     _pokemon = _pokemonStore.pokemonAtual;
+    _animation = MultiTrackTween([
+      Track("rotation").add(Duration(seconds: 5), Tween(begin: 0.0, end: 6.0),
+          curve: Curves.linear)
+    ]);
     _progress = 0;
     _multiple = 1;
     _opacity = 1;
+     _opacityTitleAppBar = 0;
   }
 
   double interval(double lower, double upper, double progress) {
@@ -48,62 +57,108 @@ class _PokeDetailPageState extends State<PokeDetailPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: PreferredSize(
-        preferredSize: Size.fromHeight(0),
-        child: Observer(
-          builder: (BuildContext context) {
-            return Column(
-              children: <Widget>[
-                AppBar(
-                  title: Opacity(
-                    child: Text(
-                      _pokemonStore.pokemonAtual.name,
-                      style: TextStyle(
-                          fontFamily: 'Google',
-                          fontWeight: FontWeight.bold,
-                          fontSize: 21),
-                    ),
-                    opacity: 1,
-                  ),
-                  elevation: 0,
-                  centerTitle: true,
-                  backgroundColor: _pokemonStore.corPokemon,
-                  leading: IconButton(
-                        icon: Icon(Icons.arrow_back),
-                        onPressed: () {
-                          Navigator.pop(context);
-                        },
-                  ),
-                ),
-                Padding(
-                    padding: const EdgeInsets.only(left: 20, right: 20),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        setTipos(_pokemonStore.pokemonAtual.type),
-                        Text(
-                          '#' + _pokemonStore.pokemonAtual.num.toString(),
-                          style: TextStyle(
-                              fontFamily: 'Google',
-                              fontSize: 26,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white),
-                        )
-                      ],
-                    )),
-              ],
-            );
-          },
-        ),
-      ),
       body: Stack(
         children: <Widget>[
           Observer(
             builder: (context) {
-              return Container(color: _pokemonStore.corPokemon);
+              return AnimatedContainer(
+                decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                      _pokemonStore.corPokemon.withOpacity(0.7),
+                      _pokemonStore.corPokemon,
+                    ])),
+                child: Stack(
+                  children: <Widget>[
+                    AppBar(
+                      centerTitle: true,
+                      elevation: 0,
+                      backgroundColor: Colors.transparent,
+                      leading: IconButton(
+                        icon: Icon(Icons.arrow_back),
+                        onPressed: () {
+                          Navigator.pop(context);
+                        },
+                      ),
+                      actions: <Widget>[
+                        Stack(
+                          alignment: Alignment.center,
+                          children: <Widget>[
+                            ControlledAnimation(
+                                playback: Playback.LOOP,
+                                duration: _animation.duration,
+                                tween: _animation,
+                                builder: (context, animation) {
+                                  return Transform.rotate(
+                                    child: AnimatedOpacity(
+                                      duration: Duration(milliseconds: 200),
+                                      child: Image.asset(
+                                        ConstsApp.whitePokeball,
+                                        height: 50,
+                                        width: 50,
+                                      ),
+                                      opacity: _opacityTitleAppBar >= 0.2
+                                          ? 0.2
+                                          : 0.0,
+                                    ),
+                                    angle: animation['rotation'],
+                                  );
+                                }),
+                          ],
+                        ),
+                      ],
+                    ),
+                    Positioned(
+                      top: MediaQuery.of(context).size.height * 0.12 -
+                          _progress *
+                              (MediaQuery.of(context).size.height * 0.060),
+                      left: 20 +
+                          _progress *
+                              (MediaQuery.of(context).size.height * 0.060),
+                      child: Text(
+                        _pokemonStore.pokemonAtual.name,
+                        style: TextStyle(
+                            fontFamily: 'Google',
+                            fontSize: 38 -
+                                _progress *
+                                    (MediaQuery.of(context).size.height *
+                                        0.011),
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white),
+                      ),
+                    ),
+                    Positioned(
+                      top: MediaQuery.of(context).size.height * 0.16,
+                      child: SizedBox(
+                        width: MediaQuery.of(context).size.width,
+                        child: Padding(
+                          padding: const EdgeInsets.only(
+                              left: 20, right: 20, top: 20),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: <Widget>[
+                              setTipos(_pokemonStore.pokemonAtual.type),
+                              Text(
+                                '#' + _pokemonStore.pokemonAtual.num.toString(),
+                                style: TextStyle(
+                                    fontFamily: 'Google',
+                                    fontSize: 26,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                duration: Duration(milliseconds: 300),
+              );
             },
           ),
-          Container(height: MediaQuery.of(context).size.height / 3),
           SlidingSheet(
             listener: (state) {
               setState(() {
@@ -153,7 +208,7 @@ class _PokeDetailPageState extends State<PokeDetailPage> {
                         Hero(
                           tag: _pokeitem.name,
                           child: Padding(
-                            padding: const EdgeInsets.only(bottom: 300.0),
+                            padding: const EdgeInsets.only(bottom: 200.0),
                             child: CachedNetworkImage(
                               height: 200,
                               width: 200,
@@ -166,7 +221,7 @@ class _PokeDetailPageState extends State<PokeDetailPage> {
                           ),
                         ),
                         Padding(
-                          padding: const EdgeInsets.only(bottom: 5.0),
+                          padding: const EdgeInsets.only(bottom: 2.0),
                           child: Text(
                             'Weak Againts:',
                             style: TextStyle(
